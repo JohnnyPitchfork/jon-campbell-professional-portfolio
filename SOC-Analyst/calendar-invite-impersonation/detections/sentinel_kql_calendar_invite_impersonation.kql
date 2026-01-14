@@ -1,0 +1,53 @@
+// ------------------------------------------------------------
+// Public Detection Example:
+// Inbound calendar invitations from external senders
+//
+// Purpose:
+// Identify inbound emails containing ICS calendar attachments
+// where the sender is not from an internal domain.
+//
+// Notes:
+// - Uses a rolling lookback window
+// - Avoids tenant-specific identifiers
+// - Suitable for Defender Advanced Hunting or Sentinel
+// ------------------------------------------------------------
+
+
+// NOTE:
+// KQL behavior around variables, functions, and joins differs between
+// Microsoft Defender Advanced Hunting and Microsoft Sentinel.
+// This query uses inline joins for maximum compatibility across environments.
+
+
+let LOOKBACK = 14d; 
+
+// Replace with internal domains in production environments
+let INTERNAL_DOMAINS = dynamic(["example.com"]);
+
+EmailEvents
+| where Timestamp >= ago(LOOKBACK)
+| where EmailDirection =~ "Inbound"
+| where SenderFromDomain !in~ (INTERNAL_DOMAINS)
+
+// Join against attachment metadata to identify calendar invites
+| join kind=inner (
+    EmailAttachmentInfo
+    | where Timestamp >= ago(LOOKBACK)
+    | where FileName endswith ".ics" or FileExtension =~ "ics"
+    | project
+        NetworkMessageId,
+        IcsFileName = FileName,
+        IcsSha256   = SHA256
+) on NetworkMessageId
+
+// Final output: investigation-ready fields
+| project
+    Timestamp,
+    SenderFromAddress,
+    SenderFromDomain,
+    RecipientEmailAddress,
+    Subject,
+    NetworkMessageId,
+    IcsFileName,
+    IcsSha256
+| order by Timestamp desc

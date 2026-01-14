@@ -1,0 +1,43 @@
+title: Calendar Invite Impersonation via Organizer Masquerading
+id: d8f6c9b3-7c3a-4e9f-9b61-portfolio-example
+status: experimental
+description: >
+  Detects calendar invite (.ics) messages where the organizer identity
+  appears to belong to an internal domain while the sender originates
+  from an external domain. This pattern may indicate calendar-based
+  impersonation or social engineering.
+
+author: Jon Campbell (portfolio example)
+date: 2026-01-13
+references:
+  - https://attack.mitre.org/techniques/T1566/
+  - https://attack.mitre.org/techniques/T1036/
+tags:
+  - attack.initial_access
+  - attack.t1566
+  - attack.t1036
+  - calendar
+  - impersonation
+
+logsource:
+  category: email
+  product: generic
+
+detection:
+  selection_calendar:
+    EmailAttachmentExtension: ".ics"
+    CalendarMethod: "REQUEST"
+
+  selection_internal_organizer:
+    CalendarOrganizerDomain: internal-domain.example
+
+  selection_external_sender:
+    SenderDomain|not: internal-domain.example
+
+  condition: selection_calendar and selection_internal_organizer and selection_external_sender
+
+falsepositives:
+  - Legitimate third-party scheduling services
+  - External partners sending calendar invites on behalf of internal users
+
+level: medium
